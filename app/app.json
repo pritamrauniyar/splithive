@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "SplitHive",
+    "slug": "splithive",
+    "version": "0.1.0",
+    "platforms": ["ios", "android"],
+    "orientation": "portrait",
+    "updates": {"enabled": true},
+    "assetBundlePatterns": [],
+    "ios": {"supportsTablet": true},
+    "android": {},
+    "extra": {}
+  }
+}

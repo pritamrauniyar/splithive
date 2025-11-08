@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS group_invites (
+  token VARCHAR(64) PRIMARY KEY,
+  group_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  used_at TIMESTAMP NULL,
+  CONSTRAINT fk_inv_group FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE
+);
+

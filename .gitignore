@@ -1,0 +1,41 @@
+# OS & Editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node / JS
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Builds / Bundles
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Expo / React Native
+.expo/
+.expo-shared/
+.metro-cache/
+android/
+ios/
+
+# Env & local config
+.env
+*.env.local
+*.local
+backend/.env
+backend/*.env.local
+
+# Logs
+logs/
+*.log
+
+# Misc
+.turbo/
+.cache/
