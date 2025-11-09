@@ -3,12 +3,30 @@
     "name": "SplitHive",
     "slug": "splithive",
     "version": "0.1.0",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "orientation": "portrait",
-    "updates": {"enabled": true},
+    "updates": {
+      "enabled": true
+    },
     "assetBundlePatterns": [],
-    "ios": {"supportsTablet": true},
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.splithive.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "android": {},
-    "extra": {}
+    "extra": {
+      "EXPO_PUBLIC_API_BASE": "http://localhost:4000",
+      "appEnv": "development",
+      "eas": {
+        "projectId": "b47c8e4b-1625-4647-9f95-26da4415a4ba"
+      }
+    }
   }
 }
