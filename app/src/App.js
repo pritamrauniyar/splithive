@@ -7,6 +7,7 @@ import GroupDetailsScreen from './screens/GroupDetailsScreen';
 import AddExpenseScreen from './screens/AddExpenseScreen';
 import AddMemberScreen from './screens/AddMemberScreen';
 import SuggestedSettlementsScreen from './screens/SuggestedSettlementsScreen';
+import ExpenseDetailsScreen from './screens/ExpenseDetailsScreen';
 import JoinViaInviteScreen from './screens/JoinViaInviteScreen';
 import AppearanceScreen from './screens/AppearanceScreen';
 import AccountScreen from './screens/AccountScreen';
@@ -46,7 +47,12 @@ function AppShell() {
       }}>
         <GroupsStack.Screen name="Home" component={HomeScreen} options={{ title: 'SplitHive' }} />
         <GroupsStack.Screen name="GroupDetails" component={GroupDetailsScreen} options={{ title: 'Group' }} />
-        <GroupsStack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: 'Add Expense' }} />
+        <GroupsStack.Screen
+          name="AddExpense"
+          component={AddExpenseScreen}
+          options={({ route }) => ({ title: route?.params?.mode === 'edit' ? 'Edit Expense' : 'Add Expense' })}
+        />
+        <GroupsStack.Screen name="ExpenseDetails" component={ExpenseDetailsScreen} options={{ title: 'Expense' }} />
         <GroupsStack.Screen name="AddMember" component={AddMemberScreen} options={{ title: 'Add Member' }} />
         <GroupsStack.Screen name="SuggestedSettlements" component={SuggestedSettlementsScreen} options={{ title: 'Suggested Settlements' }} />
         <GroupsStack.Screen name="JoinViaInvite" component={JoinViaInviteScreen} options={{ title: 'Join via Invite' }} />

@@ -65,7 +65,11 @@ export default function GroupDetailsScreen({ route, navigation }) {
         return b;
       }));
     });
-    return () => { unsubscribe(); off1(); off2(); off3(); off4(); off5(); };
+    const off6 = on('expenses:updated', (p) => { if (p && Number(p.group_id) === Number(group.id)) load(); });
+    const off7 = on('expenses:deleted', (p) => { if (p && Number(p.group_id) === Number(group.id)) {
+      setExpenses((prev) => prev.filter((x) => Number(x.id) !== Number(p.id)));
+    }});
+    return () => { unsubscribe(); off1(); off2(); off3(); off4(); off5(); off6(); off7(); };
   }, [navigation]);
 
   async function removeMember(userId) {
@@ -121,10 +125,10 @@ export default function GroupDetailsScreen({ route, navigation }) {
     const d = new Date(item.created_at);
     const month = d.toLocaleString('en-US', { month: 'short' });
     const day = String(d.getDate()).padStart(2, '0');
-    if (item.type === 'settlement') {
-      return (
-        <Card>
-          <Row style={{ justifyContent: 'space-between' }}>
+      if (item.type === 'settlement') {
+        return (
+          <Card onPress={() => {/* settlements are not clickable */}}>
+            <Row style={{ justifyContent: 'space-between' }}>
             <Row gap={12} style={{ flex: 1 }}>
               <View style={{ width: 48, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: theme.colors.subtext, fontSize: 12, fontWeight: '700' }}>{month}</Text>
@@ -139,12 +143,12 @@ export default function GroupDetailsScreen({ route, navigation }) {
           </Row>
         </Card>
       );
-    }
-    // Expense item
-            return (
-              <Card>
-                <Row style={{ justifyContent: 'space-between' }}>
-                  <Row gap={12} style={{ flex: 1 }}>
+      }
+      // Expense item
+      return (
+        <Card onPress={() => navigation.navigate('ExpenseDetails', { group, expenseId: item.id })}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Row gap={12} style={{ flex: 1 }}>
                     <View style={{ width: 48, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ color: theme.colors.subtext, fontSize: 12, fontWeight: '700' }}>{month}</Text>
                       <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>{day}</Text>
@@ -156,8 +160,8 @@ export default function GroupDetailsScreen({ route, navigation }) {
                   </Row>
                   <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Rs. {item.amount}</Text>
                 </Row>
-              </Card>
-            );
+        </Card>
+      );
   }
 
   return (

@@ -95,7 +95,10 @@ export const api = {
     create: (data) => http('/expenses', { method: 'POST', body: JSON.stringify(data) }),
     listByGroup: (groupId) => http(`/expenses/group/${groupId}`),
     settle: (groupId, data) => http(`/expenses/group/${groupId}/settlements`, { method: 'POST', body: JSON.stringify(data) }),
-    listSettlements: (groupId) => http(`/expenses/group/${groupId}/settlements`)
+    listSettlements: (groupId) => http(`/expenses/group/${groupId}/settlements`),
+    get: (id) => http(`/expenses/${id}`),
+    delete: (id) => http(`/expenses/${id}`, { method: 'DELETE' }),
+    update: (id, data) => http(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   },
   invites: {
     validate: (token) => http(`/invites/${token}`),

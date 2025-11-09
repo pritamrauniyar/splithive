@@ -8,6 +8,8 @@ import { useTheme } from '../ui/theme';
 export default function AddExpenseScreen({ route, navigation }) {
   const { theme } = useTheme();
   const { group } = route.params;
+  const isEdit = route?.params?.mode === 'edit';
+  const prefill = route?.params?.prefillExpense || null;
   const [users, setUsers] = useState([]);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -31,12 +33,33 @@ export default function AddExpenseScreen({ route, navigation }) {
     (async () => {
       const members = await api.groups.members(group.id);
       setUsers(members);
-      if (members.length) {
+      if (isEdit && prefill) {
+        // Apply prefilled values
+        if (prefill.payer_id) setPayerId(prefill.payer_id);
+        if (Array.isArray(prefill.participants) && prefill.participants.length) {
+          setSelected(new Set(prefill.participants.map(Number)));
+        }
+      } else if (members.length) {
         setPayerId(members[0].id);
         setSelected(new Set(members.map(m => m.id)));
       }
     })();
-  }, [group.id]);
+  }, [group.id, isEdit]);
+
+  // Apply other prefill fields once on mount if editing
+  useEffect(() => {
+    if (!isEdit || !prefill) return;
+    if (prefill.description) setDescription(prefill.description);
+    if (prefill.amount != null) setAmount(String(prefill.amount));
+    if (prefill.category) setCategory(prefill.category);
+    // Default to exact split using provided map
+    if (prefill.exact) setCustomAmounts(prefill.exact);
+    setSplitType('exact');
+    if (prefill.created_at) {
+      try { setExpenseDate(new Date(prefill.created_at)); } catch (_) {}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Date picker is opened via a calendar icon (not a tab)
 
@@ -132,12 +155,21 @@ export default function AddExpenseScreen({ route, navigation }) {
       const d = String(expenseDate.getDate()).padStart(2, '0');
       payload.created_at = `${y}-${m}-${d}`;
     } catch (_) {}
-    await api.expenses.create(payload);
+    if (isEdit && prefill?.id) {
+      await api.expenses.update(prefill.id, payload);
+    } else {
+      await api.expenses.create(payload);
+    }
     // Post-create settlements to normalize multi-payer contributions
     for (const st of settlements) {
       try { await api.expenses.settle(group.id, st); } catch (_) {}
     }
-    navigation.goBack();
+    if (isEdit) {
+      // From ExpenseDetails -> AddExpense(edit) -> pop back to GroupDetails
+      try { navigation.pop(2); } catch (_) { navigation.goBack(); }
+    } else {
+      navigation.goBack();
+    }
   }
 
   const tabs = [
@@ -280,10 +312,7 @@ export default function AddExpenseScreen({ route, navigation }) {
         {activeTab === 'payer' && (
           <View>
             <SectionTitle>Payer</SectionTitle>
-            <Row style={{ marginBottom: 8 }}>
-              <Chip active={multiPayer} onPress={() => setMultiPayer(!multiPayer)} icon="git-branch-outline">Multiple payers</Chip>
-            </Row>
-            {!multiPayer ? (
+            { (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                 <Row>
                   {users.map(item => (
@@ -293,28 +322,7 @@ export default function AddExpenseScreen({ route, navigation }) {
                   ))}
                 </Row>
               </ScrollView>
-            ) : (
-              <FlatList
-                data={users}
-                keyExtractor={i => String(i.id)}
-                scrollEnabled={false}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => (
-                  <Card onLayout={(e)=>{ contribLayouts.current[item.id]=e.nativeEvent.layout.y; }} style={{ marginBottom: 8, padding: 10 }}>
-                    <Row style={{ justifyContent:'space-between' }}>
-                      <Text style={{ color: theme.colors.text, flex: 1 }}>{item.name || `User ${item.id}`}</Text>
-                      <Input
-                        style={{ width: 120, marginBottom:0 }}
-                        keyboardType="decimal-pad"
-                        placeholder="Contribution"
-                        value={String(contribs[item.id] ?? '')}
-                        onChangeText={(t)=> setContribs(prev => ({ ...prev, [item.id]: t }))}
-                      />
-                    </Row>
-                  </Card>
-                )}
-              />
-            )}
+            ) }
           </View>
         )}
 
