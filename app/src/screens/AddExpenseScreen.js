@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Modal, Keyboard } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { api } from '../lib/api';
 import { Screen, Title, Card, Input, Row, Chip, PrimaryButton, SectionTitle, Subtitle, KeyboardDismissBar } from '../ui/components';
@@ -38,10 +38,7 @@ export default function AddExpenseScreen({ route, navigation }) {
     })();
   }, [group.id]);
 
-  // Open the date picker automatically when Date tab is active
-  useEffect(() => {
-    setShowDatePicker(activeTab === 'date');
-  }, [activeTab]);
+  // Date picker is opened via a calendar icon (not a tab)
 
   function toggle(userId) {
     const next = new Set(selected);
@@ -145,176 +142,208 @@ export default function AddExpenseScreen({ route, navigation }) {
 
   const tabs = [
     { key: 'split_participants', label: 'Split Up' },
-    { key: 'date', label: 'Date' },
     { key: 'payer', label: 'Payer' },
     { key: 'category', label: 'Category' }
   ];
 
   return (
     <Screen>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <FlatList
-        ref={scrollRef}
-        data={[]}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 24 }}
-        ListHeaderComponent={
-          <View>
-      <View style={{ alignItems:'center', marginBottom: 12 }}>
-        <Input
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Enter a Description"
-          onFocus={() => scrollRef.current?.scrollToOffset({ offset: 0, animated: true })}
-          style={{ width: '80%', textAlign:'center', marginTop:6, height: 52, paddingVertical: 12 }}
-        />
-        <Input
-          keyboardType="decimal-pad"
-          value={amount}
-          onChangeText={setAmount}
-          placeholder="Amount"
-          onFocus={() => scrollRef.current?.scrollToOffset({ offset: 0, animated: true })}
-          style={{ width: '60%', textAlign:'center', marginTop:6, height: 52, paddingVertical: 12 }}
-        />
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
-        <Row>
-          {tabs.map(t => (
-            <Chip key={t.key} active={activeTab === t.key} onPress={() => setActiveTab(t.key)} style={{ marginRight: 8 }}>{t.label}</Chip>
-          ))}
-        </Row>
-      </ScrollView>
-
-      {activeTab === 'split_participants' && (
-        <View>
-          <SectionTitle>Split Type</SectionTitle>
-          <Row style={{ flexWrap:'wrap', marginBottom:8 }}>
-            {[
-              {key:'equal', label:'Equal', icon:'people-outline'},
-              {key:'exact', label:'Exact', icon:'calculator-outline'},
-              {key:'percent', label:'Percent', icon:'pie-chart-outline'},
-              {key:'shares', label:'Shares', icon:'git-network-outline'}
-            ].map(opt => (
-              <Chip key={opt.key} onPress={() => setSplitType(opt.key)} active={splitType === opt.key} icon={opt.icon} style={{ marginRight: 8, marginBottom: 8 }}>{opt.label}</Chip>
-            ))}
-          </Row>
-          <SectionTitle>Participants</SectionTitle>
-          <FlatList
-            data={users}
-            keyExtractor={i => String(i.id)}
-            scrollEnabled={false}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <Card onLayout={(e)=>{ partLayouts.current[item.id]=e.nativeEvent.layout.y; }} style={[{ padding: 10, borderColor: selected.has(item.id) ? theme.colors.primary : theme.colors.border, marginBottom: 8 }]}>
-                <Row style={{ justifyContent:'space-between' }}>
-                  <TouchableOpacity onPress={() => toggle(item.id)} style={{flex:1}}>
-                    <Text style={{ color: theme.colors.text }}>{item.name || `User ${item.id}`}</Text>
-                  </TouchableOpacity>
-                  {splitType === 'exact' && selected.has(item.id) && (
-                    <Input onFocus={()=>{ const y=partLayouts.current[item.id]||0; scrollRef.current?.scrollToOffset({ offset: Math.max(0, y-140), animated: true }); }} style={{ width: 120, marginBottom:0, height: 44, paddingVertical: 10 }} keyboardType="decimal-pad" placeholder="0" value={String(customAmounts[item.id] ?? '')} onChangeText={(t)=> setCustomAmounts((prev)=> ({...prev, [item.id]: t}))} />
-                  )}
-                  {splitType === 'percent' && selected.has(item.id) && (
-                    <Input onFocus={()=>{ const y=partLayouts.current[item.id]||0; scrollRef.current?.scrollToOffset({ offset: Math.max(0, y-140), animated: true }); }} style={{ width: 120, marginBottom:0, height: 44, paddingVertical: 10 }} keyboardType="decimal-pad" placeholder="%" value={String(percentages[item.id] ?? '')} onChangeText={(t)=> setPercentages((prev)=> ({...prev, [item.id]: t}))} />
-                  )}
-                  {splitType === 'shares' && selected.has(item.id) && (
-                    <Input onFocus={()=>{ const y=partLayouts.current[item.id]||0; scrollRef.current?.scrollToOffset({ offset: Math.max(0, y-140), animated: true }); }} style={{ width: 120, marginBottom:0, height: 44, paddingVertical: 10 }} keyboardType="number-pad" placeholder="shares" value={String(shares[item.id] ?? '')} onChangeText={(t)=> setShares((prev)=> ({...prev, [item.id]: t}))} />
-                  )}
-                </Row>
-              </Card>
-            )}
+      <TouchableWithoutFeedback onPress={() => { if (Platform.OS === 'ios') Keyboard.dismiss(); }} accessible={false}>
+        <KeyboardAvoidingView behavior='padding' keyboardVerticalOffset={Platform.OS === 'ios' ? 150 : 100}>
+        <FlatList
+          data={[]}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 24 }}
+          ListHeaderComponent={
+            <View>
+        <View style={{ alignItems:'center', marginBottom: 12 }}>
+          <Input
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Enter a Description"
+            style={{ width: '80%', textAlign:'center', marginTop:6, height: 52, paddingVertical: 12 }}
+          />
+          <Input
+            keyboardType="decimal-pad"
+            value={amount}
+            onChangeText={setAmount}
+            placeholder="Amount"
+            style={{ width: '60%', textAlign:'center', marginTop:6, height: 52, paddingVertical: 12 }}
           />
         </View>
-      )}
 
-      {activeTab === 'date' && (
-        <View>
-          <SectionTitle>Expense Date</SectionTitle>
-          <Subtitle>Pick the date of this expense.</Subtitle>
-          {showDatePicker && (
-            <DateTimePicker
-              value={expenseDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(event, selected) => {
-                // Selecting a date immediately applies it; no extra Done button
-                if (selected) setExpenseDate(selected);
-                if (Platform.OS === 'android') setShowDatePicker(false);
-              }}
-              maximumDate={new Date()}
-            />
-          )}
-        </View>
-      )}
+        <Row style={{ justifyContent:'space-between', alignItems:'center', marginBottom: 6 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
+            <Row>
+              {tabs.map(t => (
+                <Chip
+                  key={t.key}
+                  active={activeTab === t.key}
+                  onPress={() => setActiveTab(t.key)}
+                  style={{ marginRight: 8 }}
+                >
+                  {t.label}
+                </Chip>
+              ))}
+            </Row>
+          </ScrollView>
+          <Chip icon="calendar-outline" onPress={() => setShowDatePicker(true)} />
+        </Row>
 
-      {activeTab === 'payer' && (
-        <View>
-          <SectionTitle>Payer</SectionTitle>
-          <Row style={{ marginBottom: 8 }}>
-            <Chip active={multiPayer} onPress={() => setMultiPayer(!multiPayer)} icon="git-branch-outline">Multiple payers</Chip>
-          </Row>
-          {!multiPayer ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-              <Row>
-                {users.map(item => (
-                  <Chip key={item.id} onPress={() => setPayerId(item.id)} active={payerId === item.id} style={{ marginRight: 8 }}>
-                    {item.name || `User ${item.id}`}
-                  </Chip>
-                ))}
-              </Row>
-            </ScrollView>
-          ) : (
+        {activeTab === 'split_participants' && (
+          <View>
+            <SectionTitle>Split Type</SectionTitle>
+            <Row style={{ flexWrap:'wrap', marginBottom:8 }}>
+              {[
+                {key:'equal', label:'Equal', icon:'people-outline'},
+                {key:'exact', label:'Exact', icon:'calculator-outline'},
+                {key:'percent', label:'Percent', icon:'pie-chart-outline'},
+                {key:'shares', label:'Shares', icon:'git-network-outline'}
+              ].map(opt => (
+                <Chip key={opt.key} onPress={() => setSplitType(opt.key)} active={splitType === opt.key} icon={opt.icon} style={{ marginRight: 8, marginBottom: 8 }}>{opt.label}</Chip>
+              ))}
+            </Row>
+            <SectionTitle>Participants</SectionTitle>
             <FlatList
               data={users}
               keyExtractor={i => String(i.id)}
               scrollEnabled={false}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
-                <Card onLayout={(e)=>{ contribLayouts.current[item.id]=e.nativeEvent.layout.y; }} style={{ marginBottom: 8, padding: 10 }}>
+                <Card onLayout={(e)=>{ partLayouts.current[item.id]=e.nativeEvent.layout.y; }} style={[{ padding: 10, borderColor: selected.has(item.id) ? theme.colors.primary : theme.colors.border, marginBottom: 8 }]}>
                   <Row style={{ justifyContent:'space-between' }}>
-                    <Text style={{ color: theme.colors.text, flex: 1 }}>{item.name || `User ${item.id}`}</Text>
-                    <Input
-                      style={{ width: 120, marginBottom:0 }}
-                      keyboardType="decimal-pad"
-                      placeholder="Contribution"
-                      onFocus={()=>{ const y=contribLayouts.current[item.id]||0; scrollRef.current?.scrollToOffset({ offset: Math.max(0, y-140), animated: true }); }}
-                      value={String(contribs[item.id] ?? '')}
-                      onChangeText={(t)=> setContribs(prev => ({ ...prev, [item.id]: t }))}
-                    />
+                    <TouchableOpacity onPress={() => toggle(item.id)} style={{flex:1}}>
+                      <Text style={{ color: theme.colors.text }}>{item.name || `User ${item.id}`}</Text>
+                    </TouchableOpacity>
+                    {splitType === 'exact' && selected.has(item.id) && (
+                    <Input style={{ width: 120, marginBottom:0, height: 44, paddingVertical: 10 }} keyboardType="decimal-pad" placeholder="0" value={String(customAmounts[item.id] ?? '')} onChangeText={(t)=> setCustomAmounts((prev)=> ({...prev, [item.id]: t}))} />
+                    )}
+                    {splitType === 'percent' && selected.has(item.id) && (
+                    <Input style={{ width: 120, marginBottom:0, height: 44, paddingVertical: 10 }} keyboardType="decimal-pad" placeholder="%" value={String(percentages[item.id] ?? '')} onChangeText={(t)=> setPercentages((prev)=> ({...prev, [item.id]: t}))} />
+                    )}
+                  {splitType === 'shares' && selected.has(item.id) && (
+                    <Input style={{ width: 120, marginBottom:0, height: 44, paddingVertical: 10 }} keyboardType="number-pad" placeholder="shares" value={String(shares[item.id] ?? '')} onChangeText={(t)=> setShares((prev)=> ({...prev, [item.id]: t}))} />
+                  )}
                   </Row>
                 </Card>
               )}
             />
-          )}
-        </View>
-      )}
+          </View>
+        )}
 
-      {activeTab === 'category' && (
-        <View>
-          <SectionTitle>Category</SectionTitle>
-          <Row style={{ flexWrap:'wrap', marginBottom:12 }}>
-            {[
-              { key: 'General', icon: 'apps-outline' },
-              { key: 'Food', icon: 'restaurant-outline' },
-              { key: 'Travel', icon: 'airplane-outline' },
-              { key: 'Shopping', icon: 'bag-outline' },
-              { key: 'Utilities', icon: 'flash-outline' },
-              { key: 'Rent', icon: 'home-outline' },
-              { key: 'Other', icon: 'ellipsis-horizontal-circle-outline' }
-            ].map(cat => (
-              <Chip key={cat.key} onPress={() => setCategory(cat.key)} active={category === cat.key} icon={cat.icon} style={{ marginRight: 8, marginBottom: 8 }}>{cat.key}</Chip>
-            ))}
-          </Row>
-        </View>
-      )}
+        {Platform.OS === 'ios' ? (
+          <Modal
+            visible={showDatePicker}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowDatePicker(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+              <View style={{ flex: 1, backgroundColor: '#0006' }} />
+            </TouchableWithoutFeedback>
+            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12 }}>
+              <Card style={{ padding: 12 }}>
+                <SectionTitle>Expense Date</SectionTitle>
+                <DateTimePicker
+                  value={expenseDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={(event, selected) => {
+                    if (selected) setExpenseDate(selected);
+                  }}
+                  maximumDate={new Date()}
+                />
+                <View style={{ height: 8 }} />
+                <PrimaryButton title="Done" onPress={() => setShowDatePicker(false)} />
+              </Card>
+            </View>
+          </Modal>
+        ) : (
+          showDatePicker && (
+            <View>
+              <SectionTitle>Expense Date</SectionTitle>
+              <Subtitle>Pick the date of this expense.</Subtitle>
+              <DateTimePicker
+                value={expenseDate}
+                mode="date"
+                display="default"
+                onChange={(event, selected) => {
+                  if (selected) setExpenseDate(selected);
+                  setShowDatePicker(false);
+                }}
+                maximumDate={new Date()}
+              />
+            </View>
+          )
+        )}
 
-      <View style={{ height: 12 }} />
-      <PrimaryButton title="Save" icon="save-outline" onPress={save} />
-      <KeyboardDismissBar />
-      </View>
-        }
-      />
-      </KeyboardAvoidingView>
+        {activeTab === 'payer' && (
+          <View>
+            <SectionTitle>Payer</SectionTitle>
+            <Row style={{ marginBottom: 8 }}>
+              <Chip active={multiPayer} onPress={() => setMultiPayer(!multiPayer)} icon="git-branch-outline">Multiple payers</Chip>
+            </Row>
+            {!multiPayer ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                <Row>
+                  {users.map(item => (
+                    <Chip key={item.id} onPress={() => setPayerId(item.id)} active={payerId === item.id} style={{ marginRight: 8 }}>
+                      {item.name || `User ${item.id}`}
+                    </Chip>
+                  ))}
+                </Row>
+              </ScrollView>
+            ) : (
+              <FlatList
+                data={users}
+                keyExtractor={i => String(i.id)}
+                scrollEnabled={false}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <Card onLayout={(e)=>{ contribLayouts.current[item.id]=e.nativeEvent.layout.y; }} style={{ marginBottom: 8, padding: 10 }}>
+                    <Row style={{ justifyContent:'space-between' }}>
+                      <Text style={{ color: theme.colors.text, flex: 1 }}>{item.name || `User ${item.id}`}</Text>
+                      <Input
+                        style={{ width: 120, marginBottom:0 }}
+                        keyboardType="decimal-pad"
+                        placeholder="Contribution"
+                        value={String(contribs[item.id] ?? '')}
+                        onChangeText={(t)=> setContribs(prev => ({ ...prev, [item.id]: t }))}
+                      />
+                    </Row>
+                  </Card>
+                )}
+              />
+            )}
+          </View>
+        )}
+
+        {activeTab === 'category' && (
+          <View>
+            <SectionTitle>Category</SectionTitle>
+            <Row style={{ flexWrap:'wrap', marginBottom:12 }}>
+              {[
+                { key: 'General', icon: 'apps-outline' },
+                { key: 'Food', icon: 'restaurant-outline' },
+                { key: 'Travel', icon: 'airplane-outline' },
+                { key: 'Shopping', icon: 'bag-outline' },
+                { key: 'Utilities', icon: 'flash-outline' },
+                { key: 'Rent', icon: 'home-outline' },
+                { key: 'Other', icon: 'ellipsis-horizontal-circle-outline' }
+              ].map(cat => (
+                <Chip key={cat.key} onPress={() => setCategory(cat.key)} active={category === cat.key} icon={cat.icon} style={{ marginRight: 8, marginBottom: 8 }}>{cat.key}</Chip>
+              ))}
+            </Row>
+          </View>
+        )}
+
+        <View style={{ height: 12 }} />
+        <PrimaryButton title="Save" icon="save-outline" onPress={save} />
+        </View>
+          }
+        />
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Screen>
   );
 }
