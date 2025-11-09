@@ -135,29 +135,29 @@ export default function GroupDetailsScreen({ route, navigation }) {
                 <Text style={{ color: theme.colors.subtext }}>Settlement</Text>
               </View>
             </Row>
-            <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{item.amount}</Text>
+              <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Rs. {item.amount}</Text>
           </Row>
         </Card>
       );
     }
     // Expense item
-    return (
-      <Card>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Row gap={12} style={{ flex: 1 }}>
-            <View style={{ width: 48, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: theme.colors.subtext, fontSize: 12, fontWeight: '700' }}>{month}</Text>
-              <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>{day}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{item.description}</Text>
-              <Text style={{ color: theme.colors.subtext }}>{item.category || 'General'}</Text>
-            </View>
-          </Row>
-          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{item.amount} {item.currency}</Text>
-        </Row>
-      </Card>
-    );
+            return (
+              <Card>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <Row gap={12} style={{ flex: 1 }}>
+                    <View style={{ width: 48, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: theme.colors.subtext, fontSize: 12, fontWeight: '700' }}>{month}</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>{day}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{item.description}</Text>
+                      <Text style={{ color: theme.colors.subtext }}>{item.category || 'General'}</Text>
+                    </View>
+                  </Row>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Rs. {item.amount}</Text>
+                </Row>
+              </Card>
+            );
   }
 
   return (
@@ -174,7 +174,7 @@ export default function GroupDetailsScreen({ route, navigation }) {
         <Subtitle style={{ marginBottom: 16 }}>
           You {myBalance >= 0 ? 'should receive' : 'owe'}{' '}
           <Text style={{ color: myBalance >= 0 ? theme.colors.success : theme.colors.danger, fontWeight: '700' }}>
-            {Math.abs(myBalance)}
+            Rs. {Math.abs(myBalance)}
           </Text>
         </Subtitle>
       ) : null}
@@ -238,7 +238,7 @@ export default function GroupDetailsScreen({ route, navigation }) {
                     <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{nameOf(item.user_id, item.user_name)}</Text>
                   </View>
                 </Row>
-                <Text style={{ color: item.net_balance >= 0 ? theme.colors.success : theme.colors.danger, fontWeight: '700' }}>{item.net_balance}</Text>
+                <Text style={{ color: item.net_balance >= 0 ? theme.colors.success : theme.colors.danger, fontWeight: '700' }}>Rs. {item.net_balance}</Text>
               </Row>
             </Card>
           )}
