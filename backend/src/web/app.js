@@ -13,6 +13,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Root landing for cPanel health checks and humans
+app.get('/', (req, res) => {
+  res
+    .type('html')
+    .send('<h1>SplitHive API</h1><p>OK</p><p>Try <a href="/health">/health</a> or <a href="/db/health">/db/health</a>.</p>');
+});
+
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'splithive-backend' });
 });
