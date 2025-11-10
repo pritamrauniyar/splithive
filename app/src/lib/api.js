@@ -91,6 +91,9 @@ export const api = {
     createInvite: (groupId) => http(`/groups/${groupId}/invites`, { method: 'POST' }),
     suggestedSettlements: (groupId) => http(`/groups/${groupId}/settlements/suggested`)
   },
+  activity: {
+    list: () => http('/activity')
+  },
   expenses: {
     create: (data) => http('/expenses', { method: 'POST', body: JSON.stringify(data) }),
     listByGroup: (groupId) => http(`/expenses/group/${groupId}`),
@@ -99,6 +102,10 @@ export const api = {
     get: (id) => http(`/expenses/${id}`),
     delete: (id) => http(`/expenses/${id}`, { method: 'DELETE' }),
     update: (id, data) => http(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+  // Restore endpoint
+  restore: {
+    fromAudit: (auditId) => http(`/expenses/restore-from-audit/${auditId}`, { method: 'POST' })
   },
   invites: {
     validate: (token) => http(`/invites/${token}`),

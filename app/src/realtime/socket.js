@@ -31,6 +31,21 @@ export function connectSocket(token) {
     socket.on('expenses:refresh', (payload) => {
       emit('expenses:refresh', payload);
     });
+    socket.on('expenses:created', (payload) => {
+      emit('expenses:created', payload);
+    });
+    socket.on('expenses:updated', (payload) => {
+      emit('expenses:updated', payload);
+    });
+    socket.on('expenses:deleted', (payload) => {
+      emit('expenses:deleted', payload);
+    });
+    socket.on('settlements:created', (payload) => {
+      emit('settlements:created', payload);
+    });
+    socket.on('members:removed', (payload) => {
+      emit('members:removed', payload);
+    });
   } catch (_) {}
 }
 

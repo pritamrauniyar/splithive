@@ -7,6 +7,7 @@ import { ping } from '../db/pool.js';
 import invitesRouter from './routes/invites.js';
 import migrationsRouter from './routes/migrations.js';
 import authRouter from './routes/auth.js';
+import activityRouter from './routes/activity.js';
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/expenses', expensesRouter);
 app.use('/invites', invitesRouter);
 app.use('/db/migrations', migrationsRouter);
 app.use('/auth', authRouter);
+app.use('/activity', activityRouter);
 
 // Basic error handler
 // eslint-disable-next-line no-unused-vars

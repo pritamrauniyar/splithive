@@ -46,7 +46,9 @@ export default function AccountScreen({ navigation }) {
 
   return (
     <Screen>
-      <Title>Account</Title>
+      <Row style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+        <Title>Account</Title>
+      </Row>
       {user ? (
         <>
           <Card>

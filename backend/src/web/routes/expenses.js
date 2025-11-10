@@ -189,6 +189,12 @@ router.post('/', requireAuth, async (req, res, next) => {
 
     await conn.commit();
 
+    // Audit log
+    try {
+      const snapshot = JSON.stringify({ description: body.description, amount: body.amount, category: body.category || 'General', payer_id: body.payer_id });
+      await pool.execute('INSERT INTO expense_audit (expense_id, group_id, actor_user_id, action, snapshot) VALUES (?, ?, ?, ?, ?)', [expenseId, body.group_id, req.user.id, 'create', snapshot]);
+    } catch (_) {}
+
     // Notify all group members with the new expense payload to reduce refetching
     try {
       const [[expense]] = await pool.execute(
@@ -255,7 +261,19 @@ router.get('/:expenseId', requireAuth, async (req, res, next) => {
        FROM expense_splits s LEFT JOIN users u ON u.id = s.user_id WHERE s.expense_id = ?`,
       [expenseId]
     );
-    res.json({ ...expense, splits });
+    // Last modified by (latest update audit)
+    let lastMod = null;
+    try {
+      const [aud] = await pool.execute(
+        `SELECT a.actor_user_id, uu.name AS actor_name
+         FROM expense_audit a LEFT JOIN users uu ON uu.id = a.actor_user_id
+         WHERE a.expense_id = ? AND a.action = 'update'
+         ORDER BY a.id DESC LIMIT 1`,
+        [expenseId]
+      );
+      if (aud && aud.length) lastMod = { last_modified_by: aud[0].actor_user_id, last_modified_by_name: aud[0].actor_name };
+    } catch (_) {}
+    res.json({ ...expense, splits, ...(lastMod || {}) });
   } catch (err) {
     next(err);
   }
@@ -269,7 +287,22 @@ router.delete('/:expenseId', requireAuth, async (req, res, next) => {
     const [[expense]] = await conn.execute('SELECT id, group_id FROM expenses WHERE id = ?', [expenseId]);
     if (!expense) { conn.release(); return res.status(404).json({ error: 'Not found' }); }
     if (!(await isMember(req.user.id, expense.group_id))) { conn.release(); return res.status(403).json({ error: 'Forbidden' }); }
+    // Snapshot for audit: include header + splits + created_at + currency + participants + created_by
+    let snap = null;
+    try {
+      const [[row]] = await conn.execute('SELECT description, amount, category, payer_id, created_at, currency, created_by FROM expenses WHERE id = ?', [expenseId]);
+      const [splits] = await conn.execute('SELECT user_id, share_amount FROM expense_splits WHERE expense_id = ?', [expenseId]);
+      const participants = splits.map(s => s.user_id);
+      snap = row ? JSON.stringify({ ...row, participants, splits }) : null;
+    } catch (_) {}
     await conn.beginTransaction();
+    // Write audit BEFORE deleting so FK is satisfied; ON DELETE SET NULL will null it after delete
+    try {
+      await conn.execute(
+        'INSERT INTO expense_audit (expense_id, group_id, actor_user_id, action, snapshot) VALUES (?, ?, ?, ?, ?)',
+        [expenseId, expense.group_id, req.user.id, 'delete', snap]
+      );
+    } catch (_) {}
     await conn.execute('DELETE FROM expenses WHERE id = ?', [expenseId]);
     await conn.commit();
     try {
@@ -375,7 +408,20 @@ router.put('/:expenseId', requireAuth, async (req, res, next) => {
     }
 
     await conn.commit();
-    // Optionally emit update event
+    // Audit log for update (snapshot a few key fields)
+    try {
+      const snap = JSON.stringify({
+        description: body.description,
+        amount: body.amount,
+        category: body.category || 'General',
+        payer_id: body.payer_id
+      });
+      await pool.execute(
+        'INSERT INTO expense_audit (expense_id, group_id, actor_user_id, action, snapshot) VALUES (?, ?, ?, ?, ?)',
+        [expenseId, body.group_id, req.user.id, 'update', snap]
+      );
+    } catch (_) {}
+    // Emit update event
     try {
       const [members] = await pool.execute('SELECT user_id FROM group_members WHERE group_id = ?', [body.group_id]);
       for (const m of members) emitToUser(m.user_id, 'expenses:updated', { group_id: body.group_id, id: expenseId });
@@ -442,6 +488,107 @@ router.get('/group/:groupId/settlements', requireAuth, async (req, res, next) =>
     res.json(rows);
   } catch (err) {
     next(err);
+  }
+});
+
+// Restore an expense from a delete-audit snapshot
+router.post('/restore-from-audit/:auditId', requireAuth, async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    const auditId = Number(req.params.auditId);
+    await conn.beginTransaction();
+    // Lock the audit row to avoid concurrent double-restore
+    const [[audit]] = await conn.execute('SELECT id, group_id, action, snapshot, restored_expense_id FROM expense_audit WHERE id = ? FOR UPDATE', [auditId]);
+    if (!audit) { await conn.rollback(); conn.release(); return res.status(404).json({ error: 'Audit not found' }); }
+    let sourceAudit = audit;
+    // If not a delete audit, attempt to resolve the latest matching delete audit in same group
+    if (audit.action !== 'delete') {
+      const srcSnap = (() => { try { return JSON.parse(audit.snapshot || '{}'); } catch (_) { return {}; } })();
+      const desc = srcSnap.description || null;
+      const amt = srcSnap.amount != null ? Number(srcSnap.amount) : null;
+      const payer = srcSnap.payer_id != null ? Number(srcSnap.payer_id) : null;
+      // Fetch recent delete audits to find a candidate match
+      const [candRows] = await conn.execute(
+        "SELECT id, action, snapshot, restored_expense_id FROM expense_audit WHERE group_id = ? AND action = 'delete' ORDER BY id DESC LIMIT 200",
+        [audit.group_id]
+      );
+      for (const r of candRows) {
+        const dSnap = (() => { try { return JSON.parse(r.snapshot || '{}'); } catch (_) { return {}; } })();
+        const dDesc = dSnap.description || null;
+        const dAmt = dSnap.amount != null ? Number(dSnap.amount) : null;
+        const dPayer = dSnap.payer_id != null ? Number(dSnap.payer_id) : null;
+        if ((desc == null || dDesc === desc) && (amt == null || dAmt === amt) && (payer == null || dPayer === payer)) {
+          sourceAudit = { ...r, group_id: audit.group_id };
+          break;
+        }
+      }
+      // If no delete audit match found and snapshot is incomplete, bail out
+      if (sourceAudit === audit) {
+        const hasComplete = srcSnap && Array.isArray(srcSnap.participants) && Array.isArray(srcSnap.splits) && srcSnap.participants.length && srcSnap.splits.length;
+        if (!hasComplete) { await conn.rollback(); conn.release(); return res.status(400).json({ error: 'No matching delete audit to restore from' }); }
+      }
+    }
+    if (sourceAudit.restored_expense_id) {
+      // Already restored earlier; return existing id
+      await conn.commit();
+      conn.release();
+      return res.json({ id: sourceAudit.restored_expense_id, group_id: audit.group_id, alreadyRestored: true });
+    }
+    const snap = (() => { try { return JSON.parse(sourceAudit.snapshot || '{}'); } catch (_) { return {}; } })();
+    const groupId = audit.group_id;
+    if (!(await isMember(req.user.id, groupId))) { await conn.rollback(); conn.release(); return res.status(403).json({ error: 'Forbidden' }); }
+    const description = snap.description || 'Restored expense';
+    const amount = Number(snap.amount || 0);
+    const payerId = Number(snap.payer_id);
+    const category = snap.category || 'General';
+    const currency = snap.currency || 'INR';
+    const createdAt = snap.created_at || null;
+    const createdAtSql = toSqlDateTimeFromInput(createdAt);
+    const participants = Array.isArray(snap.participants) ? snap.participants : [];
+    const splits = Array.isArray(snap.splits) ? snap.splits : [];
+    if (!amount || !payerId || participants.length === 0 || splits.length === 0) {
+      conn.release();
+      return res.status(400).json({ error: 'Snapshot incomplete; cannot restore' });
+    }
+
+    const insertSql = createdAtSql
+      ? 'INSERT INTO expenses (group_id, payer_id, created_by, amount, currency, description, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      : 'INSERT INTO expenses (group_id, payer_id, created_by, amount, currency, description, category) VALUES (?, ?, ?, ?, ?, ?, ?)';
+    const createdBy = Number(snap.created_by || req.user.id);
+    const args = createdAtSql
+      ? [groupId, payerId, createdBy, amount, currency, description, category, createdAtSql]
+      : [groupId, payerId, createdBy, amount, currency, description, category];
+    const [ins] = await conn.execute(insertSql, args);
+    const expenseId = ins.insertId;
+    for (const s of splits) {
+      await conn.execute('INSERT INTO expense_splits (expense_id, user_id, share_amount) VALUES (?, ?, ?)', [expenseId, s.user_id, s.share_amount]);
+    }
+    // Mark the delete-audit row (if we used one) as restored to ensure idempotency
+    if (sourceAudit && sourceAudit.id && sourceAudit.action === 'delete') {
+      await conn.execute('UPDATE expense_audit SET restored_expense_id = ? WHERE id = ?', [expenseId, sourceAudit.id]);
+    }
+    await conn.commit();
+
+    // Log restore of expense
+    try {
+      const snapshot = JSON.stringify({ description, amount, category, payer_id: payerId });
+      await pool.execute('INSERT INTO expense_audit (expense_id, group_id, actor_user_id, action, snapshot) VALUES (?, ?, ?, ?, ?)', [expenseId, groupId, req.user.id, 'restore', snapshot]);
+    } catch (_) {}
+    // Notify members
+    try {
+      const [[expense]] = await pool.execute('SELECT id, amount, currency, description, payer_id, created_at, category FROM expenses WHERE id = ?', [expenseId]);
+      const [splitRows] = await pool.execute('SELECT user_id, share_amount FROM expense_splits WHERE expense_id = ?', [expenseId]);
+      const payload = { group_id: groupId, expense: { ...expense, splits: splitRows } };
+      const [members] = await pool.execute('SELECT user_id FROM group_members WHERE group_id = ?', [groupId]);
+      for (const m of members) emitToUser(m.user_id, 'expenses:created', payload);
+    } catch (_) {}
+
+    res.status(201).json({ id: expenseId, group_id: groupId });
+  } catch (err) {
+    try { await conn.rollback(); } catch (_) {}
+    next(err);
+  } finally {
+    conn.release();
   }
 });
 

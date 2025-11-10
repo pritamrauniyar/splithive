@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from './screens/HomeScreen';
+import ActivityScreen from './screens/ActivityScreen';
 import GroupDetailsScreen from './screens/GroupDetailsScreen';
 import AddExpenseScreen from './screens/AddExpenseScreen';
 import AddMemberScreen from './screens/AddMemberScreen';
@@ -36,6 +37,7 @@ function AppShell() {
   const Tab = createBottomTabNavigator();
   const GroupsStack = createNativeStackNavigator();
   const AccountStack = createNativeStackNavigator();
+  const ActivityStack = createNativeStackNavigator();
 
   function GroupsStackScreen() {
     return (
@@ -68,10 +70,23 @@ function AppShell() {
         headerTintColor: theme.colors.text,
         contentStyle: { backgroundColor: theme.colors.bg }
       }}>
-        <AccountStack.Screen name="AccountHome" component={AccountScreen} options={{ title: 'Account' }} />
+        <AccountStack.Screen name="AccountHome" component={AccountScreen} options={{ title: 'SplitHive' }} />
         <AccountStack.Screen name="Appearance" component={AppearanceScreen} options={{ title: 'Appearance' }} />
         <AccountStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
       </AccountStack.Navigator>
+    );
+  }
+
+  function ActivityStackScreen() {
+    return (
+      <ActivityStack.Navigator screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.card },
+        headerShadowVisible: false,
+        headerTintColor: theme.colors.text,
+        contentStyle: { backgroundColor: theme.colors.bg }
+      }}>
+        <ActivityStack.Screen name="ActivityHome" component={ActivityScreen} options={{ title: 'SplitHive' }} />
+      </ActivityStack.Navigator>
     );
   }
 
@@ -85,12 +100,13 @@ function AppShell() {
             tabBarActiveTintColor: theme.colors.primary,
             tabBarInactiveTintColor: theme.colors.subtext,
             tabBarIcon: ({ color, size }) => {
-              const name = route.name === 'Groups' ? 'people-outline' : 'person-circle-outline';
+              const name = route.name === 'Groups' ? 'people-outline' : route.name === 'Activity' ? 'time-outline' : 'person-circle-outline';
               return <Ionicons name={name} size={size} color={color} />;
             }
           })}
         >
           <Tab.Screen name="Groups" component={GroupsStackScreen} />
+          <Tab.Screen name="Activity" component={ActivityStackScreen} />
           <Tab.Screen name="Account" component={AccountStackScreen} />
         </Tab.Navigator>
       ) : (
