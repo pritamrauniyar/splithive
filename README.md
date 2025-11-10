@@ -1,4 +1,4 @@
-SplitHive — Open Splitwise-style App
+SplitHive — Split Your Expense App
 
 Free, cross-platform expense splitting app for friends and family.
 
